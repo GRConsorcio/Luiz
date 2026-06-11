@@ -306,6 +306,10 @@ input[type=number]::-webkit-inner-spin-button{opacity:0.3;}
       <span style="color:rgba(255,255,255,0.5);font-size:13px">semanas (máx. 8)</span>
     </div>
 
+    <div class="section-label">Ajuste Manual — Vendas do Dia</div>
+    <div id="admin-ajuste-dia" style="margin-bottom:8px;"></div>
+    <button onclick="aplicarAjusteDia()" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);color:#e8c86a;padding:8px;width:100%;border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:12px;font-family:'Roboto',sans-serif;font-weight:600;letter-spacing:1px;">✓ APLICAR AJUSTE</button>
+
     <div class="section-label">Vendedores</div>
     <div id="admin-vendedores"></div>
     <button class="add-btn" onclick="addVendedorAdmin()">+ Adicionar vendedor</button>
@@ -707,6 +711,7 @@ function carregarAdminEquipe(key){
       cont.innerHTML='';
       const lista=nomes.length?nomes:(c.vendedores||[]);
       renderVendedoresAdmin(lista);
+      renderAjusteDia();
     });
   });
 }
@@ -831,6 +836,56 @@ window.repararSnapDiaHoje=function(){
   render();
   setSyncOk();
   alert(`Reparo concluído! ${reparados} vendedor(es) corrigido(s).\nAs vendas do dia foram recuperadas.`);
+};
+
+
+// ── Renderiza ajuste manual de vendas do dia ──
+function renderAjusteDia(){
+  const cont = document.getElementById('admin-ajuste-dia');
+  if(!cont) return;
+  const d = dataHoje();
+  cont.innerHTML = '';
+  if(!dados.length){ cont.innerHTML='<div style="color:#555;font-size:12px;padding:4px 0;">Nenhum vendedor carregado.</div>'; return; }
+  dados.forEach(v=>{
+    const k = nomeKey(v.nome);
+    const totalAtual = v.s.reduce((a,b)=>a+b,0);
+    const entry = snapDia[k];
+    const vendasHoje = (entry && entry.data===d) ? Math.max(0,totalAtual-entry.base) : 0;
+    const row = document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+    row.innerHTML=`
+      <span style="flex:1;font-size:12px;color:#ccc;font-family:'Roboto',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.nome}</span>
+      <span style="font-size:11px;color:#666;min-width:60px;text-align:right;">atual: ${vendasHoje}</span>
+      <input type="number" min="0" max="99" value="${vendasHoje}"
+        data-key="${k}" data-nome="${v.nome}"
+        style="width:52px;background:rgba(0,0,0,0.5);border:1px solid rgba(201,168,76,0.3);color:#e8c86a;
+               padding:5px 6px;border-radius:4px;font-size:13px;font-family:'Roboto',sans-serif;font-weight:700;text-align:center;">
+    `;
+    cont.appendChild(row);
+  });
+}
+
+window.aplicarAjusteDia=function(){
+  const inputs = document.querySelectorAll('#admin-ajuste-dia input[type=number]');
+  if(!inputs.length){ alert('Nenhum vendedor para ajustar.'); return; }
+  const d = dataHoje();
+  let alterados = 0;
+  inputs.forEach(inp=>{
+    const k = inp.dataset.key;
+    const nome = inp.dataset.nome;
+    const vendasCorrigidas = parseInt(inp.value)||0;
+    const vend = dados.find(v=>nomeKey(v.nome)===k);
+    if(!vend) return;
+    const totalAtual = vend.s.reduce((a,b)=>a+b,0);
+    // base = totalAtual - vendas que queremos mostrar como "hoje"
+    const novaBase = Math.max(0, totalAtual - vendasCorrigidas);
+    snapDia[k] = {data:d, base:novaBase, nome};
+    set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:d,base:novaBase,nome}).catch(()=>{});
+    alterados++;
+  });
+  render();
+  setSyncOk();
+  alert(`Ajuste aplicado para ${alterados} vendedor(es)!`);
 };
 
 window.zerarHoje=function(){
