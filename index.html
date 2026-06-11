@@ -347,7 +347,7 @@ function setSyncOk(){badge.textContent='● SINCRONIZADO';badge.className='sync-
 function setSyncErr(){badge.textContent='● OFFLINE';badge.className='sync-badge err';}
 function setSyncSaving(){badge.textContent='● SALVANDO';badge.className='sync-badge';}
 
-function dataHoje(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function dataHoje(){return new Date().toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');}
 function nomeKey(n){return n.replace(/[.#$\[\]/]/g,'_');}
 
 // ── CARREGAR LISTA DE EQUIPES ──
@@ -452,30 +452,49 @@ function vendasHojeVendedor(v){
   const k=nomeKey(v.nome);
   const totalAtual=v.s.reduce((a,b)=>a+b,0);
   const entry=snapDia[k];
+  const hoje=dataHoje();
   let fromSemanas=0;
-  if(!entry||entry.data!==dataHoje()){
-    const base=totalAtual;snapDia[k]={data:dataHoje(),base};
-    set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:dataHoje(),base,nome:v.nome}).catch(()=>{});
-  } else {fromSemanas=Math.max(0,totalAtual-entry.base);}
+  if(!entry){
+    // Nunca teve snapshot — cria com o total atual como base (0 vendas do dia)
+    snapDia[k]={data:hoje,base:totalAtual};
+    set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:hoje,base:totalAtual,nome:v.nome}).catch(()=>{});
+  } else if(entry.data!==hoje){
+    // Snapshot de dia anterior: cria novo para hoje
+    // IMPORTANTE: não usa totalAtual como base pois pode já incluir vendas de hoje
+    // gravadas pelo CRM antes do ranking recarregar.
+    // Usa entry.base + incremento de ontem como estimativa, mas NUNCA maior que totalAtual.
+    const novaBase=totalAtual; // aceita perda de vendas já contabilizadas ontem
+    snapDia[k]={data:hoje,base:novaBase};
+    set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:hoje,base:novaBase,nome:v.nome}).catch(()=>{});
+  } else {
+    // Snapshot de hoje — calcula normalmente
+    fromSemanas=Math.max(0,totalAtual-entry.base);
+  }
   return fromSemanas+getCotaDia(v.nome);
 }
 function inicializarSnapDia(snapVal){
   const d=dataHoje();
+  // Data UTC de hoje — aceita como equivalente para compatibilidade com snapDias
+  // gravados pelo CRM antes da correção de fuso horário
+  const dUTC=new Date().toISOString().slice(0,10);
   dados.forEach(v=>{
     const k=nomeKey(v.nome);
     const entry=snapVal?.[k];
-    if(entry&&entry.data===d){
-      // Snapshot de hoje já existe — usa sem modificar
-      snapDia[k]=entry;
-    } else if(!entry||entry.data!==d){
-      // Sem snapshot de hoje: só grava na memória local
-      // NÃO regrava no Firebase — o CRM pode ter gravado o snapBase
-      // correto (pré-venda) logo antes de incrementar o s[].
-      // Só grava no Firebase se não existir NADA (primeiro uso do dia).
+    // Aceita tanto data BRT quanto data UTC como "hoje válido"
+    const entryEhHoje = entry && (entry.data===d || entry.data===dUTC);
+    if(entryEhHoje){
+      // Snapshot válido de hoje — usa sem modificar, normaliza a data para BRT
+      snapDia[k]={...entry, data:d};
+      // Se estava em UTC, migra silenciosamente para BRT no Firebase
+      if(entry.data===dUTC && entry.data!==d){
+        set(ref(db,`${equipeAtual}/snapDia/${k}`),{...entry,data:d}).catch(()=>{});
+      }
+    } else {
+      // Sem snapshot de hoje: cria na memória
+      // NÃO regrava no Firebase — o CRM grava o snapBase correto (pré-venda).
+      // Só grava no Firebase se não existe NADA (primeiro uso do dia).
       const base=v.s.reduce((a,b)=>a+b,0);
       snapDia[k]={data:d,base};
-      // Grava no Firebase apenas se não existe entrada alguma (entry===null/undefined)
-      // — não sobrescreve entrada de dia anterior que o CRM já atualizou
       if(!entry){
         set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:d,base,nome:v.nome}).catch(()=>{});
       }
@@ -483,10 +502,17 @@ function inicializarSnapDia(snapVal){
   });
 }
 
-// Reset à meia-noite
+// Reset à meia-noite BRT (America/Sao_Paulo = UTC-3)
 function agendarResetMeiaNoite(){
-  const agora=new Date();
-  const mn=new Date(agora);mn.setHours(24,0,5,0);
+  const agora = new Date();
+  // Calcula quantos ms faltam para 00:00:05 do próximo dia em BRT
+  // BRT = UTC-3 → meia-noite BRT = 03:00 UTC
+  const agoraBRT = new Date(agora.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
+  const amanhaBRT = new Date(agoraBRT);
+  amanhaBRT.setDate(amanhaBRT.getDate()+1);
+  amanhaBRT.setHours(0,0,5,0); // 00:00:05 BRT do dia seguinte
+  // Converte de volta para UTC: adiciona 3h (diferença BRT→UTC)
+  const diffMs = amanhaBRT - agoraBRT;
   setTimeout(()=>{
     const d=dataHoje();
     dados.forEach(v=>{
@@ -495,7 +521,7 @@ function agendarResetMeiaNoite(){
       set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:d,base,nome:v.nome}).catch(()=>{});
     });
     render();agendarResetMeiaNoite();
-  },mn-agora);
+  },diffMs);
 }
 
 // ── RENDER ──
