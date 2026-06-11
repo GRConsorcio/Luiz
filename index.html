@@ -289,6 +289,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:0.3;}
     <input class="input-full" type="number" id="admin-conv" min="0" step="0.01" placeholder="Ex: 2.24" />
 
     <div class="section-label">Ações</div>
+    <button onclick="repararSnapDiaHoje()" style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.35);color:#e8c86a;padding:8px;width:100%;border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:8px;font-family:'Roboto',sans-serif;font-weight:600;letter-spacing:1px;">🔧 REPARAR VENDAS DO DIA</button>
     <button onclick="zerarHoje()" style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:#f87171;padding:8px;width:100%;border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:8px;font-family:'Roboto',sans-serif;font-weight:600;letter-spacing:1px;">🔄 ZERAR VENDAS DO DIA</button>
     <button onclick="confirmarExcluirEquipe()" style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);color:#f87171;padding:8px;width:100%;border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:8px;font-family:'Roboto',sans-serif;font-weight:600;letter-spacing:1px;">🗑 EXCLUIR ESTA EQUIPE</button>
 
@@ -787,6 +788,49 @@ window.salvarAdmin=function(){
       ]).then(()=>{setSyncOk();document.getElementById('overlay').classList.remove('open');}).catch(setSyncErr);
     });
   });
+};
+
+
+window.repararSnapDiaHoje=function(){
+  // Recalcula o snapDia correto sem zerar vendas.
+  // Lógica: a base deve ser (total atual - vendas de hoje).
+  // Vendas de hoje = o que o snapDia antigo registrou como diferença.
+  // Se o snapDia antigo tem data errada (UTC), ele contém a base de ontem —
+  // então a base correta é o valor que estava no snapDia antigo (entry.base).
+  const d = dataHoje();
+  const dUTC = new Date().toISOString().slice(0,10);
+  let reparados = 0;
+
+  dados.forEach(v=>{
+    const k = nomeKey(v.nome);
+    const totalAtual = v.s.reduce((a,b)=>a+b,0);
+    const entry = snapDia[k];
+
+    let baseCorreta;
+
+    if(!entry){
+      // Nunca teve snap — base = total (0 vendas do dia)
+      baseCorreta = totalAtual;
+    } else if(entry.data === d){
+      // Snap já está correto para hoje em BRT — não mexe
+      console.log(`[Reparo] ${v.nome}: snap já correto (base=${entry.base}, vendas hoje=${totalAtual-entry.base})`);
+      return;
+    } else {
+      // Snap de dia anterior (UTC ou ontem) — a base dele é o total de ontem.
+      // As vendas de hoje = totalAtual - entry.base
+      // Base correta para hoje = entry.base (total de ontem)
+      baseCorreta = entry.base;
+      console.log(`[Reparo] ${v.nome}: era data="${entry.data}", corrigindo para "${d}" | base=${baseCorreta} | vendas hoje recuperadas=${totalAtual-baseCorreta}`);
+    }
+
+    snapDia[k] = {data:d, base:baseCorreta, nome:v.nome};
+    set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:d,base:baseCorreta,nome:v.nome}).catch(()=>{});
+    reparados++;
+  });
+
+  render();
+  setSyncOk();
+  alert(`Reparo concluído! ${reparados} vendedor(es) corrigido(s).\nAs vendas do dia foram recuperadas.`);
 };
 
 window.zerarHoje=function(){
