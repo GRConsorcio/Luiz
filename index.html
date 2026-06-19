@@ -733,14 +733,17 @@ window.confirmarExcluirEquipe=function(){
   document.getElementById('overlay').classList.remove('open');
 };
 
-function renderVendedoresAdmin(nomes){
+function renderVendedoresAdmin(lista){
+  // lista pode ser array de strings (compat) ou array de {nome, original}
+  const itens = lista.map(it => typeof it === 'string' ? {nome: it, original: it} : it);
   const cont=document.getElementById('admin-vendedores');
   cont.innerHTML='';
-  nomes.forEach((n,i)=>{
+  itens.forEach((it,i)=>{
     const row=document.createElement('div');
     row.className='field-row';
     const inp=document.createElement('input');
-    inp.type='text';inp.value=n;inp.dataset.idx=i;inp.placeholder='Nome';
+    inp.type='text';inp.value=it.nome;inp.dataset.idx=i;inp.placeholder='Nome';
+    inp.dataset.original=it.original||''; // nome como está gravado no Firebase — usado para não perder o histórico ao renomear
     inp.style.cssText='flex:1;background:rgba(0,0,0,0.4);border:1px solid rgba(201,168,76,0.2);color:#fff;padding:8px 12px;border-radius:4px;font-size:14px;font-family:"Roboto",sans-serif;';
     const btn=document.createElement('button');
     btn.className='del-btn';btn.textContent='✕';
@@ -752,17 +755,17 @@ function renderVendedoresAdmin(nomes){
 
 window.addVendedorAdmin=function(){
   const inputs=document.querySelectorAll('#admin-vendedores input[type=text]');
-  const nomes=Array.from(inputs).map(i=>i.value.trim()||'Vendedor');
-  nomes.push('Novo Vendedor');
-  renderVendedoresAdmin(nomes);
+  const itens=Array.from(inputs).map(i=>({nome:i.value.trim()||'Vendedor',original:i.dataset.original||''}));
+  itens.push({nome:'Novo Vendedor',original:''}); // original vazio = vendedor novo, sem histórico para casar
+  renderVendedoresAdmin(itens);
 };
 
 window.removerVendedor=function(idx){
   const inputs=document.querySelectorAll('#admin-vendedores input[type=text]');
   if(inputs.length<=1)return;
-  const nomes=Array.from(inputs).map(i=>i.value.trim()||'Vendedor');
-  nomes.splice(idx,1);
-  renderVendedoresAdmin(nomes);
+  const itens=Array.from(inputs).map(i=>({nome:i.value.trim()||'Vendedor',original:i.dataset.original||''}));
+  itens.splice(idx,1);
+  renderVendedoresAdmin(itens);
 };
 
 window.salvarAdmin=function(){
@@ -770,7 +773,16 @@ window.salvarAdmin=function(){
   const novaConv=parseFloat(document.getElementById('admin-conv').value)||0;
   const novasSemanas=Math.min(8,Math.max(1,parseInt(document.getElementById('admin-semanas').value)||4));
   const inputs=document.querySelectorAll('#admin-vendedores input[type=text]');
-  const novosNomes=Array.from(inputs).map(i=>i.value.trim()||'Vendedor');
+  // Guarda nome novo JUNTO COM o nome original (como estava no Firebase antes desta edição),
+  // para casar pelo nome ORIGINAL e não perder o histórico quando o nome é alterado
+  // (ex: adicionar sobrenome). Antes, o casamento era só pelo nome novo — se não batesse
+  // exatamente com o que já existia, o vendedor "virava" um vendedor novo com cotas=0,
+  // e como o save SOBRESCREVE o nó inteiro (set, não update), os dados antigos eram perdidos.
+  const pares=Array.from(inputs).map(i=>({
+    nome: i.value.trim()||'Vendedor',
+    original: i.dataset.original||''
+  }));
+  const novosNomes=pares.map(p=>p.nome);
 
   get(ref(db,`${adminEquipeEditando}/config`)).then(snap=>{
     const c=snap.val()||{};
@@ -779,9 +791,11 @@ window.salvarAdmin=function(){
     get(ref(db,`${adminEquipeEditando}/dados`)).then(ds=>{
       const dval=ds.val()||{};
       const novosDados={};
-      novosNomes.forEach(nome=>{
+      pares.forEach(({nome,original})=>{
         const k=nomeKey(nome);
-        const existing=Object.values(dval).find(d=>d.nome===nome);
+        // Casa pelo nome ORIGINAL (antes da edição); se não houver original (vendedor novo)
+        // ou não encontrar, cai no fallback de casar pelo nome novo (compatibilidade).
+        const existing=Object.values(dval).find(d=>d.nome===original) || (original?null:Object.values(dval).find(d=>d.nome===nome));
         const s=existing?[...existing.s]:Array(novasSemanas).fill(0);
         while(s.length<novasSemanas)s.push(0);
         novosDados[k]={nome,s:s.slice(0,novasSemanas)};
