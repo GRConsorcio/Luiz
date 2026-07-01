@@ -319,7 +319,7 @@ input[type=number]::-webkit-inner-spin-button{opacity:0.3;}
 
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getDatabase,ref,onValue,set,remove,get}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import{getDatabase,ref,onValue,set,remove,get,runTransaction}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // ══════════════════════════════════════
 //  🔥 FIREBASE — GR Consórcio
@@ -354,6 +354,9 @@ function setSyncSaving(){badge.textContent='● SALVANDO';badge.className='sync-
 
 function dataHoje(){return new Date().toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');}
 function nomeKey(n){return n.replace(/[.#$\[\]/]/g,'_');}
+// Evita disparar várias reconciliações de snapDia em paralelo pro mesmo vendedor
+// (vendasHojeVendedor roda a cada render(), e render() pode rodar várias vezes seguidas)
+const _snapDiaReconciliando=new Set();
 
 // ── CARREGAR LISTA DE EQUIPES ──
 function carregarListaEquipes(){
@@ -464,13 +467,32 @@ function vendasHojeVendedor(v){
     snapDia[k]={data:hoje,base:totalAtual};
     set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:hoje,base:totalAtual,nome:v.nome}).catch(()=>{});
   } else if(entry.data!==hoje){
-    // Snapshot de dia anterior: cria novo para hoje
-    // IMPORTANTE: não usa totalAtual como base pois pode já incluir vendas de hoje
-    // gravadas pelo CRM antes do ranking recarregar.
-    // Usa entry.base + incremento de ontem como estimativa, mas NUNCA maior que totalAtual.
-    const novaBase=totalAtual; // aceita perda de vendas já contabilizadas ontem
-    snapDia[k]={data:hoje,base:novaBase};
-    set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:hoje,base:novaBase,nome:v.nome}).catch(()=>{});
+    // Snapshot de dia anterior. Usa o total atual como base só NA MEMÓRIA LOCAL
+    // pra esta renderização não travar (mostra "0 vendas hoje" até confirmar).
+    // NÃO grava direto no Firebase aqui: se já houve venda hoje, o CRM já
+    // escreveu (ou está prestes a escrever) o snapDia correto — com a base
+    // sendo o total de ONTEM, capturado antes de incrementar s[]. Gravar aqui
+    // com totalAtual (que já pode incluir a venda de hoje, se o listener do
+    // snapDia ainda não recebeu a escrita do CRM) apagava a base correta e
+    // zerava a "venda do dia" — era esse o bug: a venda só sobrava no total
+    // do mês porque o snapshot do dia era reiniciado em cima dela.
+    snapDia[k]={data:hoje,base:totalAtual};
+    if(!_snapDiaReconciliando.has(k)){
+      _snapDiaReconciliando.add(k);
+      runTransaction(ref(db,`${equipeAtual}/snapDia/${k}`),current=>{
+        if(current && current.data===hoje){
+          // Já existe snapshot de hoje no servidor (gravado pelo CRM ou por
+          // outra aba) — não mexe, evita apagar a base correta.
+          return; // undefined = aborta a transação sem escrever nada
+        }
+        return {data:hoje,base:totalAtual,nome:v.nome};
+      }).then(result=>{
+        if(result.snapshot.exists()) snapDia[k]={...result.snapshot.val()};
+      }).catch(()=>{}).finally(()=>{
+        _snapDiaReconciliando.delete(k);
+        render();
+      });
+    }
   } else {
     // Snapshot de hoje — calcula normalmente
     fromSemanas=Math.max(0,totalAtual-entry.base);
