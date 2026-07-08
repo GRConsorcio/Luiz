@@ -66,12 +66,12 @@ body{font-family:"Roboto",sans-serif;display:flex;flex-direction:column;font-wei
 .stat-number.c-gold{color:var(--gold);}
 
 /* PROGRESS BAR */
-.progress-wrap{margin-top:0.4vh;position:relative;z-index:1;}
-.progress-track{height:0.8vh;background:rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;margin-bottom:0.4vh;}
+.progress-wrap{margin-top:0.4vh;position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:center;}
+.progress-track{height:1.4vh;background:rgba(255,255,255,0.06);border-radius:20px;overflow:hidden;margin-bottom:0.6vh;}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--gold3),var(--gold));border-radius:20px;transition:width 0.8s ease;}
 .progress-fill.blue{background:linear-gradient(90deg,var(--navy),var(--blue-text));}
-.progress-meta{font-size:1.15vh;color:var(--gray);font-weight:400;letter-spacing:0.02em;}
-.progress-pct{font-size:1.7vh;color:var(--gold);font-weight:700;text-align:right;font-family:"Roboto Condensed",sans-serif;}
+.progress-meta{font-size:1.3vh;color:var(--gray);font-weight:400;letter-spacing:0.02em;margin-top:0.6vh;}
+.progress-pct{font-size:5.6vh;color:var(--gold);font-weight:700;text-align:right;font-family:"Roboto Condensed",sans-serif;line-height:1;}
 
 /* CONVERSION */
 .conv-number{font-family:"Roboto Condensed",sans-serif;font-size:5.6vh;font-weight:700;color:var(--gold);line-height:1;text-align:right;position:relative;z-index:1;}
@@ -1105,19 +1105,19 @@ function recalcFontSizes(){
   if(!availPx)return;
   const r=document.documentElement;
   const baseFs=8;
-  r.style.setProperty('--fs-td',    baseFs+'vh');
+  r.style.setProperty('--fs-td',    (baseFs*1.6)+'vh');
   r.style.setProperty('--fs-name',  (baseFs*1.4)+'vh');
   r.style.setProperty('--fs-total', (baseFs*2.2)+'vh');
-  r.style.setProperty('--fs-th',    (baseFs*1.1)+'vh');
+  r.style.setProperty('--fs-th',    (baseFs*1.9)+'vh');
   r.style.setProperty('--td-pad',   (baseFs*0.3)+'vh 0.6vw');
   r.style.setProperty('--th-pad',   (baseFs*0.35)+'vh 0.6vw');
   const medidoPx=table.getBoundingClientRect().height;
   if(!medidoPx)return;
   const scale=Math.min(4, (availPx/medidoPx)*zoomFactor);
-  r.style.setProperty('--fs-td',    Math.max(1.4, baseFs*scale)+'vh');
+  r.style.setProperty('--fs-td',    Math.max(1.4, baseFs*1.6*scale)+'vh');
   r.style.setProperty('--fs-name',  Math.max(1.6, baseFs*1.4*scale)+'vh');
   r.style.setProperty('--fs-total', Math.max(1.6, baseFs*2.2*scale)+'vh');
-  r.style.setProperty('--fs-th',    Math.max(1.2, baseFs*1.1*scale)+'vh');
+  r.style.setProperty('--fs-th',    Math.max(1.2, baseFs*1.9*scale)+'vh');
   r.style.setProperty('--input-w',  Math.max(4.5, baseFs*2.2*scale)+'vh');
   r.style.setProperty('--td-pad',   Math.max(0.35, baseFs*0.3*scale)+'vh 0.6vw');
   r.style.setProperty('--th-pad',   Math.max(0.4, baseFs*0.35*scale)+'vh 0.6vw');
