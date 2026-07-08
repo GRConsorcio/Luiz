@@ -1107,7 +1107,7 @@ function recalcFontSizes(){
   const baseFs=8;
   r.style.setProperty('--fs-td',    baseFs+'vh');
   r.style.setProperty('--fs-name',  (baseFs*1.4)+'vh');
-  r.style.setProperty('--fs-total', (baseFs*1.75)+'vh');
+  r.style.setProperty('--fs-total', (baseFs*2.2)+'vh');
   r.style.setProperty('--fs-th',    (baseFs*1.1)+'vh');
   r.style.setProperty('--td-pad',   (baseFs*0.3)+'vh 0.6vw');
   r.style.setProperty('--th-pad',   (baseFs*0.35)+'vh 0.6vw');
@@ -1116,7 +1116,7 @@ function recalcFontSizes(){
   const scale=Math.min(4, (availPx/medidoPx)*zoomFactor);
   r.style.setProperty('--fs-td',    Math.max(1.4, baseFs*scale)+'vh');
   r.style.setProperty('--fs-name',  Math.max(1.6, baseFs*1.4*scale)+'vh');
-  r.style.setProperty('--fs-total', Math.max(1.6, baseFs*1.75*scale)+'vh');
+  r.style.setProperty('--fs-total', Math.max(1.6, baseFs*2.2*scale)+'vh');
   r.style.setProperty('--fs-th',    Math.max(1.2, baseFs*1.1*scale)+'vh');
   r.style.setProperty('--input-w',  Math.max(4.5, baseFs*2.2*scale)+'vh');
   r.style.setProperty('--td-pad',   Math.max(0.35, baseFs*0.3*scale)+'vh 0.6vw');
