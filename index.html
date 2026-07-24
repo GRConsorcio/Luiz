@@ -706,6 +706,16 @@ function render(){
   const meta=config.meta||100;
   const pct=Math.min(100,Math.round(totalMes/meta*100));
 
+  // BUGFIX: o painel "Geral" só LÊ ${equipe}/config/vendas_dia de cada equipe do
+  // Luiz — ele não recalcula "vendas do dia" sozinho. Esse board sempre computou
+  // totalDia só na tela local, sem gravar de volta, então o Geral ficava travado
+  // no valor inicial (0). Só grava quando muda, e atualiza o config local antes,
+  // pra não reacionar o listener em loop.
+  if(config.vendas_dia !== totalDia){
+    config.vendas_dia = totalDia;
+    set(ref(db,`${equipeAtual}/config/vendas_dia`), totalDia).catch(()=>{});
+  }
+
   document.getElementById('stat-dia').textContent=totalDia;
   document.getElementById('stat-mes').textContent=totalMes;
   document.getElementById('progress-fill').style.width=pct+'%';
