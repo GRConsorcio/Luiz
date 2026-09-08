@@ -474,7 +474,7 @@ let unsubscribe=null;
 // Supabase do CRM, usando o mesmo critério do KPI "Conversão" de lá:
 // fechados (vendas Aprovado dos membros da equipe) / leads da equipe.
 const CRM_SUPA_URL='https://prquggwhjcvenzuziaox.supabase.co';
-const CRM_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBycXVnZ3doamN2ZW56dXppYW94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTUzMDUsImV4cCI6MjA5Mzc5MTMwNX0.vjbVhGIUowS6AGE1Uf5uDutCMI193mhgra3GSwlqMec';
+const CRM_ANON_KEY='sb_publishable_YcjSMFQoaBa5mHUtqrPCPQ_2SZmJ5aF';
 const CRM_RANK_SECRET='gr_rank_conv_4d8f21b7c6a93e0f5b1d8a2c7e9f0364b8a15d72';
 let _convAuto=null;
 let _convAutoEquipeCache=null;
@@ -487,7 +487,18 @@ async function atualizarConversaoAutomatica(nomeEquipe){
       body:JSON.stringify({p_nome_equipe:nomeEquipe,p_secret:CRM_RANK_SECRET})
     });
     const data=await resp.json();
-    if(data && !data.error) _convAuto=data.conversao_pct;
+    // BUGFIX: se a chave do Supabase expira/é revogada, a resposta vem com
+    // erro mas SEM o campo "error" no formato esperado (ex: {message:"Legacy
+    // API keys are disabled"}) — o guard antigo (!data.error) deixava passar,
+    // gravando _convAuto=undefined. Depois disso, TODO render() quebrava em
+    // conv.toFixed() e a tela parava de reagir a qualquer clique (inclusive
+    // o Modo Edição, que só é desenhado na parte do render() que vem depois
+    // desse ponto). Agora só aceita um número de verdade.
+    if(data && typeof data.conversao_pct==='number' && !Number.isNaN(data.conversao_pct)){
+      _convAuto=data.conversao_pct;
+    } else {
+      console.warn('[conversão automática] resposta inesperada, mantendo valor anterior:',data);
+    }
   }catch(e){ console.warn('[conversão automática] erro:',e.message); }
   render();
 }
@@ -723,7 +734,11 @@ function render(){
   document.getElementById('progress-meta').textContent='Meta do mês '+meta+' cotas.';
   document.getElementById('progress-pct').textContent=pct+'%';
   document.getElementById('meta-input').value=meta;
-  document.getElementById('stat-conv').textContent=(_convAuto!==null?_convAuto:0).toFixed(2).replace('.',',');
+  // Segunda camada de proteção: mesmo que _convAuto venha corrompido de
+  // algum outro jeito no futuro, isso NUNCA pode travar o render() inteiro
+  // (era exatamente isso que deixava a tela de TV/edição sem reagir a nada).
+  const conv=(typeof _convAuto==='number' && !Number.isNaN(_convAuto))?_convAuto:0;
+  document.getElementById('stat-conv').textContent=conv.toFixed(2).replace('.',',');
 
   const wrap=document.getElementById('tableWrap');
   const sorted=[...dados].sort((a,b)=>b.s.reduce((x,y)=>x+y,0)-a.s.reduce((x,y)=>x+y,0));
