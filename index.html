@@ -1207,5 +1207,16 @@ const FRASES_MOTIVACIONAIS=[
   setInterval(trocar,5000);
 })();
 </script>
+<script>
+  // ── WATCHDOG DE CONEXÃO (tela de TV) ──
+  // Essa página fica com a mesma aba aberta por dias/semanas num monitor.
+  // O listener onValue() do Firebase é em tempo real, mas se o WebSocket
+  // cair (blip de wifi, roteador reiniciando, etc.) o SDK às vezes não
+  // reconecta sozinho nesse tipo de ambiente — a tela trava mostrando
+  // números antigos pra sempre, sem ninguém perceber, até alguém dar F5
+  // manualmente. Recarrega a página sozinha de tempos em tempos como rede
+  // de segurança, garantindo uma conexão nova periodicamente.
+  setInterval(()=>{ location.reload(); }, 2*60*60*1000); // a cada 2h
+</script>
 </body>
 </html>
