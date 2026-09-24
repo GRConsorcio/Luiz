@@ -795,6 +795,20 @@ function render(){
     function aplicar(delta){
       const v=dados.find(x=>x.nome===nome);
       if(!v)return;
+      // BUGFIX: precisa capturar/gravar a base do snapDia com o total de ANTES
+      // do incremento. Se isso rodar depois de mexer em v.s (como fazia antes),
+      // e for a primeira mudança do dia pra esse vendedor (snapDia ainda não
+      // existe hoje), a base é gravada já com a cota manual dentro — o total
+      // da semana sobe mas "vendas do dia" fica em 0, porque a base absorveu
+      // o próprio incremento.
+      const k=nomeKey(nome);
+      const hoje=dataHoje();
+      const entry=snapDia[k];
+      if(!entry||entry.data!==hoje){
+        const totalAntes=v.s.reduce((a,b)=>a+b,0);
+        snapDia[k]={data:hoje,base:totalAntes};
+        set(ref(db,`${equipeAtual}/snapDia/${k}`),{data:hoje,base:totalAntes,nome:v.nome}).catch(()=>{});
+      }
       v.s[si]=Math.max(0,(v.s[si]||0)+delta);
       render();
       setSyncSaving();
