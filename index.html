@@ -231,6 +231,115 @@ body.edit-mode .stat-mes-wrap{cursor:pointer;}
 .equipe-tab.active{background:rgba(214,169,60,0.12);border-color:var(--gold3);color:var(--gold);}
 .equipe-tab.add-equipe{border-style:dashed;color:var(--gray);}
 .equipe-tab.del-equipe{border-color:rgba(248,113,113,0.3);color:#f87171;background:rgba(248,113,113,0.06);}
+
+/* ══════════════════════════════════════════════════════════════
+   VISUALIZAÇÃO MOBILE (somente celular)
+   Bloco isolado: só entra em ação em tela estreita (celular em pé)
+   ou celular deitado (altura baixa + toque). Na TV/desktop nada muda.
+   Não altera dados, regras nem JS — só apresentação.
+   O !important aqui é necessário só nas propriedades que o JS
+   (recalcFontSizes) controla via variáveis inline em vh.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width:700px), (max-height:520px) and (orientation:landscape) and (pointer:coarse){
+  html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-text-size-adjust:100%;}
+  .screen{height:auto;min-height:100vh;min-height:100dvh;padding:10px 10px calc(10px + env(safe-area-inset-bottom));gap:10px;}
+
+  /* HEADER — quebra em linhas em vez de estourar a largura */
+  .header{flex-wrap:wrap;gap:8px;padding:2px 0;}
+  .header-logo-badge{width:34px;height:34px;}
+  .sync-badge{font-size:10px;padding:4px 9px;}
+  .header-titles{flex:1 1 150px;min-width:0;margin-right:0;}
+  .header-title,.header-title-static{font-size:17px;white-space:normal;}
+  .header-subtitle{font-size:10px;}
+  .header-logo-fiat{height:22px;padding:0;}
+  .edit-toggle{font-size:12px;padding:8px 12px;}
+  .settings-btn{width:34px;height:34px;font-size:16px;}
+  .equipe-sel{font-size:17px;max-width:100%;}
+  .equipe-sel-wrap.multi-equipe::after{font-size:15px;}
+
+  /* CORPO — empilha: cards em cima, tabela embaixo */
+  .body{flex-direction:column;gap:10px;min-height:0;flex:none;}
+  .left-panel{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px;flex-shrink:1;}
+  .stat-box{flex:none;padding:10px 12px;gap:6px;}
+  .stat-label{font-size:12px;}
+  .stat-sub{font-size:10px;margin-top:2px;}
+  .stat-icon{width:16px;height:16px;}
+  .stat-number,.stat-number.big{font-size:36px;}
+  .stat-mes-input{font-size:36px;}
+  .stat-dia-hint,.stat-mes-hint,.stat-mes-hint-edit{font-size:10px;}
+  .dia-phrase{padding:2px 0;}
+  .dia-phrase span{font-size:12px;line-height:1.35;}
+  .progress-wrap{margin-top:2px;}
+  .progress-track{height:8px;margin-bottom:4px;}
+  .progress-pct{font-size:30px;}
+  .progress-meta{font-size:11px;margin-top:4px;}
+  .conv-number{font-size:30px;}
+  .conv-unit{font-size:13px;}
+  .meta-row{flex-wrap:wrap;gap:6px;}
+  .meta-row label{font-size:11px;}
+  .meta-input{font-size:16px;width:72px;padding:4px 6px;}
+
+  /* TOP DO MÊS */
+  .right-panel{flex:none;gap:10px;min-width:0;}
+  .top-mes-card{padding:10px 12px;gap:10px;}
+  .top-mes-avatar{width:38px;height:38px;font-size:17px;}
+  .top-mes-label{font-size:10px;}
+  .top-mes-label svg{width:13px;height:13px;}
+  .top-mes-nome{font-size:16px;}
+  .top-mes-vendas{font-size:12px;margin-top:1px;}
+  .top-mes-bar{height:5px;margin-top:5px;max-width:none;}
+  .top-mes-total{padding-left:10px;}
+  .top-mes-total-num{font-size:26px;}
+  .top-mes-total-lbl{font-size:10px;margin-top:2px;}
+
+  /* TABELA — altura natural, coluna do nome absorve o espaço que sobra */
+  .table-wrap{flex:none;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+  table{height:auto;table-layout:auto;}
+  thead th,thead th:nth-child(2),tfoot tr td,tfoot tr td:nth-child(2){
+    font-size:9px !important;padding:8px 3px !important;letter-spacing:0.01em;white-space:normal;line-height:1.15;
+  }
+  thead th.col-rank{width:auto;}
+  thead th:nth-child(2){width:100%;padding-left:8px !important;}
+  tbody tr td{white-space:nowrap;}
+  .table-wrap tbody td{font-size:15px !important;padding:10px 5px !important;}
+  .table-wrap tbody td.col-rank{padding-left:8px !important;padding-right:4px !important;}
+  /* nome: volta a ser célula de tabela (com flex o ellipsis não funcionava) */
+  .table-wrap tbody td:nth-child(2){
+    display:table-cell;height:auto;width:100%;
+    font-size:15px !important;padding-left:6px !important;
+    white-space:normal;overflow:visible;line-height:1.15;word-break:break-word;
+  }
+  .table-wrap tbody td:not(:nth-child(2)){padding-left:3px !important;padding-right:3px !important;}
+  .table-wrap tbody td.col-total,.table-wrap tfoot td.col-total{font-size:16px !important;}
+  tfoot tr td{white-space:nowrap;}
+  .table-wrap tfoot tr td:not(.col-total){font-size:13px !important;}
+  .rank-badge{width:18px;height:18px;font-size:11px;margin-right:6px;vertical-align:middle;}
+  .stepper{gap:3px;}
+  .step-btn{width:30px !important;height:30px !important;font-size:16px !important;}
+  .step-val{min-width:18px;}
+  /* modo edição precisa de mais largura (botões −/+): rola de lado */
+  body.edit-mode .table-wrap table{min-width:600px;}
+
+  .footer-tag{flex-wrap:wrap;gap:6px 14px;font-size:10px;padding:2px 0 0;}
+  .footer-tag .dot{width:8px;height:8px;}
+
+  /* POPUPS — centralizados e dentro da tela (o JS posiciona por coordenadas) */
+  .dia-popup{left:50% !important;top:50% !important;right:auto !important;bottom:auto !important;transform:translate(-50%,-50%);width:min(92vw,380px);max-height:85vh;max-height:85dvh;overflow-y:auto;}
+  .dia-name{font-size:15px;}
+  .dia-btn{width:32px;height:32px;font-size:18px;}
+  .dia-val{font-size:18px;min-width:30px;}
+  .dia-popup-title{font-size:14px;}
+  .popup{max-height:90vh;max-height:90dvh;padding:22px 16px;}
+  /* 16px nos campos evita o zoom automático do iPhone ao focar */
+  .field-row input[type=text],.input-full,.semanas-row input[type=number]{font-size:16px;}
+}
+
+/* celular com tela um pouco mais larga (ex.: deitado): cards em 1 linha */
+@media (max-width:700px) and (min-width:520px), (max-height:520px) and (orientation:landscape) and (pointer:coarse) and (min-width:520px){
+  .left-panel{grid-template-columns:repeat(4,1fr);}
+  .stat-number,.stat-number.big,.stat-mes-input{font-size:30px;}
+  .progress-pct,.conv-number{font-size:26px;}
+}
 </style>
 </head>
 <body>
